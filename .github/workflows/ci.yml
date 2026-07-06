@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  smoke:
+    name: Docker, Lean, and LaTeX
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Build container
+        run: docker compose build
+
+      - name: Start container
+        run: docker compose up -d
+
+      - name: Build Lean sources
+        run: make build-lean
+
+      - name: Build PDF
+        run: make pdf
+
+      - name: Stop container
+        if: always()
+        run: docker compose down --remove-orphans

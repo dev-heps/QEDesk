@@ -1,0 +1,11 @@
+name: qedesk
+
+services:
+  qedesk:
+    build: .
+    image: qedesk:latest
+    pull_policy: build
+    container_name: qedesk
+    volumes:
+      - .:/workspace
+    command: sleep infinity

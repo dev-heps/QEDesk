@@ -1,0 +1,144 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+COMPOSE=(docker compose --project-directory "$PROJECT_DIR")
+SERVICE=qedesk
+PDF_BUILD_DIR=build
+
+is_running() {
+  "${COMPOSE[@]}" ps --status running --services 2>/dev/null | grep -qx "$SERVICE"
+}
+
+require_running() {
+  if ! is_running; then
+    echo "QEDesk is not running. Start it first:" >&2
+    echo >&2
+    echo "  ./bin/qedesk start" >&2
+    exit 1
+  fi
+}
+
+usage() {
+  cat <<'EOF'
+QEDesk command line
+
+Usage:
+  qedesk <command>
+
+Commands:
+  start         Build and start the QEDesk container
+  stop          Stop and remove the container
+  restart       Restart the container
+  status        Show container status
+  shell         Open a shell inside the container
+  files         Show the main files to edit
+  lean          Build the Lean library
+  build-lean    Alias for lean
+  pdf           Build build/main.pdf from src/main.tex
+  agent         Run lean-lsp-mcp inside the container
+  clean         Remove local build artifacts
+  docker-clean  Remove the local QEDesk container and image
+  help          Show this help
+EOF
+}
+
+command="${1:-help}"
+shift || true
+
+case "$command" in
+  start)
+    "${COMPOSE[@]}" up -d "$@"
+    ;;
+  stop)
+    "${COMPOSE[@]}" down "$@"
+    ;;
+  restart)
+    "${COMPOSE[@]}" down
+    "${COMPOSE[@]}" up -d "$@"
+    ;;
+  status)
+    "${COMPOSE[@]}" ps "$@"
+    ;;
+  shell)
+    require_running
+    "${COMPOSE[@]}" exec "$SERVICE" bash "$@"
+    ;;
+  files)
+    cat <<EOF
+Edit these files in your editor:
+
+  Lean source:   $PROJECT_DIR/src/Proof.lean
+  LaTeX notes:   $PROJECT_DIR/src/main.tex
+  PDF output:    $PROJECT_DIR/$PDF_BUILD_DIR/main.pdf
+
+Do not run src/Proof.lean or src/main.tex as shell commands.
+Use:
+
+  ./bin/qedesk lean
+  ./bin/qedesk pdf
+EOF
+    ;;
+  lean|build-lean)
+    require_running
+    "${COMPOSE[@]}" exec "$SERVICE" lake build Proof "$@"
+    ;;
+  pdf)
+    require_running
+    mkdir -p "$PROJECT_DIR/$PDF_BUILD_DIR"
+    if ! "${COMPOSE[@]}" exec "$SERVICE" latexmk -pdf -g -shell-escape -interaction=nonstopmode -halt-on-error -output-directory="$PDF_BUILD_DIR" src/main.tex "$@"; then
+      echo
+      echo "Could not write build/main.pdf. If it is open in a PDF viewer, close it and retry."
+      echo "Trying build/main-preview.pdf instead..."
+      if "${COMPOSE[@]}" exec "$SERVICE" latexmk -pdf -g -jobname=main-preview -shell-escape -interaction=nonstopmode -halt-on-error -output-directory="$PDF_BUILD_DIR" src/main.tex "$@"; then
+        echo
+        echo "PDF written to build/main-preview.pdf"
+      else
+        echo
+        echo "PDF build failed. Check src/main.tex and build/main-preview.log."
+        exit 1
+      fi
+    fi
+    ;;
+  agent)
+    require_running
+    if [ -t 0 ]; then
+      cat >&2 <<'EOF'
+qedesk agent starts the Lean MCP stdio server.
+
+It is meant to be launched by an MCP client, not used as an interactive shell.
+If you want a terminal inside the container, run:
+
+  ./bin/qedesk shell
+
+If you started the agent by accident, you are still in a normal shell now.
+EOF
+      exit 2
+    fi
+    "${COMPOSE[@]}" exec -T "$SERVICE" uvx lean-lsp-mcp "$@"
+    ;;
+  clean)
+    if ! (
+      cd "$PROJECT_DIR"
+      "${COMPOSE[@]}" exec -T "$SERVICE" sh -lc 'rm -rf .lake lake-manifest.json build _minted-* *.aux *.fdb_latexmk *.fls *.log *.out *.pdf' 2>/dev/null \
+        || rm -rf -- .lake lake-manifest.json "$PDF_BUILD_DIR" _minted-* *.aux *.fdb_latexmk *.fls *.log *.out *.pdf
+    ); then
+      echo "Some generated files are locked. Close PDF viewers and retry qedesk clean."
+      exit 0
+    fi
+    ;;
+  docker-clean)
+    "${COMPOSE[@]}" down --remove-orphans
+    docker image rm -f qedesk || true
+    ;;
+  help|-h|--help)
+    usage
+    ;;
+  *)
+    echo "Unknown command: $command" >&2
+    echo >&2
+    usage >&2
+    exit 2
+    ;;
+esac

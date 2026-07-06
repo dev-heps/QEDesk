@@ -1,0 +1,12 @@
+.lake/
+build/
+outputs/
+work/
+_minted-*/
+lake-manifest.json
+*.aux
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.pdf

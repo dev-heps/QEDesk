@@ -1,0 +1,59 @@
+\documentclass[11pt]{article}
+
+\usepackage[a4paper,margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{mathtools}
+\usepackage[outputdir=build]{minted}
+\usepackage{hyperref}
+
+\title{QEDesk}
+\author{}
+\date{\today}
+
+\newtheorem{theorem}{Theorem}
+
+\begin{document}
+\maketitle
+
+\section{Power Sets}
+
+\subsection*{Problem}
+
+Let $S = \{1,2,3\}$. Describe its power set $\mathcal{P}(S)$ by listing all
+its elements.
+
+\subsection*{Solution}
+
+The power set $\mathcal{P}(S)$ is the set of all subsets of $S$. Since $S$ has
+three elements, its power set has $2^3 = 8$ elements:
+
+\[
+\mathcal{P}(S)
+=
+\left\{
+\varnothing,
+\{1\},
+\{2\},
+\{3\},
+\{1,2\},
+\{1,3\},
+\{2,3\},
+\{1,2,3\}
+\right\}.
+\]
+
+The Lean file \texttt{src/Proof.lean} represents these finite sets as
+duplicate-free lists and checks the enumeration mechanically.
+
+\begin{minted}{lean}
+def S : List Nat :=
+  [1, 2, 3]
+
+def powerSetS : List (List Nat) :=
+  [[], [1], [2], [3], [1, 2], [1, 3], [2, 3], [1, 2, 3]]
+
+example : powerSetS.length = 8 := by
+  native_decide
+\end{minted}
+
+\end{document}
