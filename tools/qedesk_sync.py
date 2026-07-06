@@ -89,7 +89,7 @@ def render_leanblueprint_template(root: Path, template_name: str) -> str:
         comment_start_string="{--",
         comment_end_string="--}",
     )
-    return env.get_template(template_name).render(BLUEPRINT_TEMPLATE_CONFIG)
+    return env.get_template(template_name).render(BLUEPRINT_TEMPLATE_CONFIG).replace("\u202f", " ")
 
 
 def render_upstream_blueprint_scaffold(src_dir: Path) -> bool:
@@ -174,10 +174,10 @@ def lean_statement_to_tex(statement: str) -> str:
         )
 
     mem_image_preimage = re.search(
-        r"\(\s*[^:]+:\s*([A-Za-z_][A-Za-z0-9_']*)\s*∈\s*"
+        r"\(\s*[^:]+:\s*([A-Za-z_][A-Za-z0-9_']*)\s*\u2208\s*"
         r"Set\.image\s+([A-Za-z_][A-Za-z0-9_']*)\s+"
         r"\(Set\.preimage\s+\2\s+([A-Za-z_][A-Za-z0-9_']*)\)\s*\)\s*:\s*"
-        r"\1\s*∈\s*\3",
+        r"\1\s*\u2208\s*\3",
         compact,
     )
     if mem_image_preimage:
