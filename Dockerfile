@@ -11,17 +11,24 @@ RUN apt-get update \
         build-essential \
         ca-certificates \
         curl \
+        dvisvgm \
         git \
+        ghostscript \
         graphviz \
         latexmk \
         libgmp-dev \
         libgraphviz-dev \
+        nodejs \
+        npm \
         python3 \
         python3-pip \
         python3-pygments \
         python3-venv \
+        ripgrep \
         texlive-latex-extra \
         texlive-science \
+        unzip \
+        zstd \
     && rm -rf /var/lib/apt/lists/*
 
 RUN curl -fsSL https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh \
@@ -35,9 +42,16 @@ RUN python3 -m venv /opt/venv \
         lean-lsp-mcp \
         leanblueprint \
         leanclient \
+        jsonschema \
         openai \
+        plasTeX \
+        pylatexenc \
         sympy \
         uv
+
+# The workspace is a host bind mount, often from WSL/Windows. Allow Git-based
+# Lake dependencies inside this single-purpose development container.
+RUN git config --global --add safe.directory '*'
 
 WORKDIR /workspace
 

@@ -1,9 +1,14 @@
+.env
 .lake/
 build/
 outputs/
 work/
+__pycache__/
+*.pyc
+blueprint/web/
+blueprint/lean_decls
+blueprint/src/*.paux
 _minted-*/
-lake-manifest.json
 *.aux
 *.fdb_latexmk
 *.fls

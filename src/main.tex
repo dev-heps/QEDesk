@@ -15,45 +15,101 @@
 \begin{document}
 \maketitle
 
-\section{Power Sets}
+\section{Images and Preimages}
 
 \subsection*{Problem}
 
-Let $S = \{1,2,3\}$. Describe its power set $\mathcal{P}(S)$ by listing all
-its elements.
-
-\subsection*{Solution}
-
-The power set $\mathcal{P}(S)$ is the set of all subsets of $S$. Since $S$ has
-three elements, its power set has $2^3 = 8$ elements:
-
+Let $f : A \to B$ be a function and let $B_1 \subseteq B$. Prove that
 \[
-\mathcal{P}(S)
-=
-\left\{
-\varnothing,
-\{1\},
-\{2\},
-\{3\},
-\{1,2\},
-\{1,3\},
-\{2,3\},
-\{1,2,3\}
-\right\}.
+  f\bigl(f^{-1}(B_1)\bigr) \subseteq B_1.
 \]
 
-The Lean file \texttt{src/Proof.lean} represents these finite sets as
-duplicate-free lists and checks the enumeration mechanically.
+\subsection*{Proof Blueprint}
+
+% QEDesk[node=image_membership][kind=definition][title=Membership in an image][status=open]
+For a set $S \subseteq A$, the assertion $b \in f(S)$ means that there is
+some $a \in S$ such that $f(a)=b$.
+
+% QEDesk[node=preimage_membership][kind=definition][title=Membership in a preimage][status=open]
+The assertion $a \in f^{-1}(B_1)$ means exactly that $f(a) \in B_1$.
+
+% QEDesk[node=mem_of_mem_image_preimage][kind=lemma][title=Element chase through image and preimage][lean=mem_of_mem_image_preimage][status=checked]
+% QEDesk[uses=image_membership,preimage_membership]
+If $b \in f(f^{-1}(B_1))$, then $b \in B_1$.
+
+% QEDesk[node=image_preimage_subset][kind=theorem][title=Image of a preimage is contained in the target set][lean=image_preimage_subset][status=checked]
+% QEDesk[uses=mem_of_mem_image_preimage]
+The elementwise lemma proves the subset statement
+$f(f^{-1}(B_1)) \subseteq B_1$.
+
+\subsection*{Proof Idea}
+
+To prove a subset relation, start with an arbitrary element of the left-hand
+side and prove that it belongs to the right-hand side.
+
+Suppose $b \in f(f^{-1}(B_1))$. Then there exists some $a \in A$ such that
+\[
+  a \in f^{-1}(B_1)
+  \quad\text{and}\quad
+  f(a) = b.
+\]
+Since $a \in f^{-1}(B_1)$, by the definition of preimage we have
+$f(a) \in B_1$. Since $f(a)=b$, it follows that $b \in B_1$.
+
+Therefore,
+\[
+  f(f^{-1}(B_1)) \subseteq B_1.
+\]
+
+\subsection*{Generated Lean Map}
+
+% QEDesk generated lean-map begin
+This section is generated from \texttt{src/Proof.lean} by \texttt{qedesk sync}.
+
+\paragraph{Mapped statements.}
+
+\paragraph{mem\_of\_mem\_image\_preimage.}
+\[
+  b \in f\bigl(f^{-1}(B_1)\bigr) \Rightarrow b \in B_1
+\]
+Lean status: checked.
+
+\paragraph{image\_preimage\_subset.}
+\[
+  f\bigl(f^{-1}(B_1)\bigr) \subseteq B_1
+\]
+Lean status: checked.
+
+\paragraph{Lean source.}
 
 \begin{minted}{lean}
-def S : List Nat :=
-  [1, 2, 3]
+import Mathlib.Data.Set.Basic
 
-def powerSetS : List (List Nat) :=
-  [[], [1], [2], [3], [1, 2], [1, 3], [2, 3], [1, 2, 3]]
+universe u v
 
-example : powerSetS.length = 8 := by
-  native_decide
+section ImagePreimage
+
+variable {A : Type u} {B : Type v}
+
+theorem mem_of_mem_image_preimage
+    (f : A -> B) (B1 : Set B) {b : B}
+    (hb : Set.image f (Set.preimage f B1) b) :
+    B1 b := by
+  cases hb with
+  | intro a ha =>
+      cases ha with
+      | intro ha hfa =>
+          cases hfa
+          exact ha
+
+theorem image_preimage_subset
+    (f : A -> B) (B1 : Set B) :
+    Set.image f (Set.preimage f B1) <= B1 := by
+  intro b hb
+  exact mem_of_mem_image_preimage f B1 hb
+
+end ImagePreimage
 \end{minted}
+% QEDesk generated lean-map end
 
 \end{document}

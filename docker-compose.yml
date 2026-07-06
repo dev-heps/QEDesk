@@ -4,8 +4,18 @@ services:
   qedesk:
     build: .
     image: qedesk:latest
-    pull_policy: build
     container_name: qedesk
+    ports:
+      - "8000-8009:8000-8009"
     volumes:
       - .:/workspace
+      - qedesk_lake:/workspace/.lake
+    environment:
+      LEAN_LOG_LEVEL: NONE
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      OPENROUTER_HTTP_REFERER: ${OPENROUTER_HTTP_REFERER:-https://github.com/qedesk/qedesk}
+      OPENROUTER_TITLE: ${OPENROUTER_TITLE:-QEDesk}
     command: sleep infinity
+
+volumes:
+  qedesk_lake:

@@ -1,0 +1,162 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://qedesk.local/schemas/qedesk-dag.schema.json",
+  "title": "QEDesk DAG Sidecar",
+  "type": "object",
+  "required": ["document", "nodes", "edges", "gaps"],
+  "additionalProperties": false,
+  "properties": {
+    "document": {
+      "type": "string",
+      "description": "Path to the source LaTeX document, usually src/main.tex."
+    },
+    "version": {
+      "type": "string",
+      "default": "0.2"
+    },
+    "nodes": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/node"
+      }
+    },
+    "edges": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/edge"
+      }
+    },
+    "gaps": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/gap"
+      }
+    }
+  },
+  "$defs": {
+    "span": {
+      "type": "object",
+      "required": ["start_line", "end_line"],
+      "additionalProperties": false,
+      "properties": {
+        "start_line": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "end_line": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "start_column": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "end_column": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "node": {
+      "type": "object",
+      "required": ["id", "kind", "title", "span"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z][A-Za-z0-9_-]*$"
+        },
+        "kind": {
+          "type": "string",
+          "enum": ["definition", "theorem", "lemma", "proposition", "corollary", "example", "fact", "goal"]
+        },
+        "label": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "lean_decl": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["draft", "open", "candidate", "checked", "blocked"]
+        },
+        "span": {
+          "$ref": "#/$defs/span"
+        }
+      }
+    },
+    "edge": {
+      "type": "object",
+      "required": ["from", "to", "type", "evidence"],
+      "additionalProperties": false,
+      "properties": {
+        "from": {
+          "type": "string"
+        },
+        "to": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["uses", "proves", "depends-on", "refines", "formalizes"]
+        },
+        "evidence": {
+          "type": "string",
+          "enum": ["explicit-macro", "qedesk-comment", "lean-declaration", "parser", "nlp-candidate", "manual"]
+        }
+      }
+    },
+    "gap": {
+      "type": "object",
+      "required": ["id", "node_id", "type", "status", "span"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^g[0-9]+$"
+        },
+        "node_id": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "quantifier-jump",
+            "missing-hypothesis",
+            "missing-justification",
+            "false-inference",
+            "undefined-symbol",
+            "ambiguous-expression",
+            "set-membership-gap",
+            "calculation-gap",
+            "visual-dependence",
+            "statement-drift",
+            "unspecified"
+          ]
+        },
+        "severity": {
+          "type": "string",
+          "enum": ["low", "medium", "high"]
+        },
+        "status": {
+          "type": "string",
+          "enum": ["open", "hinted", "candidate", "resolved", "rejected"]
+        },
+        "hint_level": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4
+        },
+        "span": {
+          "$ref": "#/$defs/span"
+        },
+        "message": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

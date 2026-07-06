@@ -34,11 +34,24 @@ Commands:
   status        Show container status
   shell         Open a shell inside the container
   files         Show the main files to edit
+  contracts     Show QEDesk v0.2 data-contract files
+  sync          Sync Lean declarations into TeX, blueprint, and DAG files
+  blueprint     Build the Lean Blueprint HTML visualization
+  serve         Serve the generated Blueprint and dependency graph
+  prepare       Build Lean once before launching MCP/OpenCode
+  cache         Fetch Mathlib/Lean dependency cache when available
   lean          Build the Lean library
   build-lean    Alias for lean
   pdf           Build build/main.pdf from src/main.tex
   agent         Run lean-lsp-mcp inside the container
+  audit         Audit QEDesk nodes through the OpenRouter router
+  formalize     Ask the router for local Lean statements or skeletons
+  repair        Ask the router for a local repair hint from a Lean error
+  route         Show the model tier selected for a node
+  cost          Show the OpenRouter cost ledger summary
+  init-ledger   Create the local cost ledger database
   clean         Remove local build artifacts
+  cost-reset    Remove the local OpenRouter cost ledger
   docker-clean  Remove the local QEDesk container and image
   help          Show this help
 EOF
@@ -71,6 +84,8 @@ Edit these files in your editor:
 
   Lean source:   $PROJECT_DIR/src/Proof.lean
   LaTeX notes:   $PROJECT_DIR/src/main.tex
+  Architecture:  $PROJECT_DIR/docs/ARCHITECTURE.md
+  Data contract: $PROJECT_DIR/docs/DATA_CONTRACTS.md
   PDF output:    $PROJECT_DIR/$PDF_BUILD_DIR/main.pdf
 
 Do not run src/Proof.lean or src/main.tex as shell commands.
@@ -79,6 +94,62 @@ Use:
   ./bin/qedesk lean
   ./bin/qedesk pdf
 EOF
+    ;;
+  contracts)
+    cat <<EOF
+QEDesk v0.2 data contracts:
+
+  Architecture:       $PROJECT_DIR/docs/ARCHITECTURE.md
+  Data contracts:     $PROJECT_DIR/docs/DATA_CONTRACTS.md
+  Integrations:       $PROJECT_DIR/docs/INTEGRATIONS.md
+  Agent rules:        $PROJECT_DIR/AGENTS.md
+  OpenCode config:    $PROJECT_DIR/opencode.json
+  Router config:      $PROJECT_DIR/qedesk-router.json
+  DAG schema:         $PROJECT_DIR/schemas/qedesk-dag.schema.json
+  Blueprint source:   $PROJECT_DIR/blueprint/src/content.tex
+  Blueprint HTML:     $PROJECT_DIR/blueprint/web/index.html
+  DAG output:         $PROJECT_DIR/build/qedesk-dag.json
+  Mermaid DAG:        $PROJECT_DIR/build/qedesk-dag.mmd
+  Cost ledger:        $PROJECT_DIR/build/qedesk-ledger.sqlite
+
+src/main.tex remains the student-facing source of truth.
+qedesk sync regenerates Blueprint source and the DAG sidecar from src/Proof.lean.
+EOF
+    ;;
+  sync)
+    require_running
+    "${COMPOSE[@]}" exec -T "$SERVICE" python tools/qedesk_sync.py "$@"
+    ;;
+  blueprint)
+    require_running
+    "${COMPOSE[@]}" exec -T "$SERVICE" python tools/qedesk_sync.py
+    "${COMPOSE[@]}" exec -T "$SERVICE" leanblueprint web "$@"
+    "${COMPOSE[@]}" exec -T "$SERVICE" python tools/qedesk_blueprint_ui.py
+    echo
+    echo "Blueprint HTML written to: $PROJECT_DIR/blueprint/web/index.html"
+    echo "Dependency graph written to: $PROJECT_DIR/blueprint/web/dep_graph_document.html"
+    echo
+    echo "To view it through the upstream Lean Blueprint server:"
+    echo "  ./bin/qedesk serve"
+    ;;
+  serve)
+    require_running
+    if [ ! -f "$PROJECT_DIR/blueprint/web/index.html" ] || [ ! -f "$PROJECT_DIR/blueprint/web/dep_graph_document.html" ]; then
+      "${COMPOSE[@]}" exec -T "$SERVICE" python tools/qedesk_sync.py
+      "${COMPOSE[@]}" exec -T "$SERVICE" leanblueprint web
+      "${COMPOSE[@]}" exec -T "$SERVICE" python tools/qedesk_blueprint_ui.py
+    fi
+    echo "Serving Blueprint at http://localhost:8000/"
+    echo "Dependency graph: http://localhost:8000/dep_graph_document.html"
+    "${COMPOSE[@]}" exec "$SERVICE" leanblueprint serve "$@"
+    ;;
+  prepare)
+    require_running
+    "${COMPOSE[@]}" exec "$SERVICE" lake build Proof "$@"
+    ;;
+  cache)
+    require_running
+    "${COMPOSE[@]}" exec "$SERVICE" lake exe cache get "$@"
     ;;
   lean|build-lean)
     require_running
@@ -116,20 +187,31 @@ If you started the agent by accident, you are still in a normal shell now.
 EOF
       exit 2
     fi
-    "${COMPOSE[@]}" exec -T "$SERVICE" uvx lean-lsp-mcp "$@"
+    "${COMPOSE[@]}" exec -T "$SERVICE" lean-lsp-mcp "$@"
+    ;;
+  audit|formalize|repair|route|cost|init-ledger)
+    require_running
+    "${COMPOSE[@]}" exec -T "$SERVICE" python tools/qedesk_router.py "$command" "$@"
     ;;
   clean)
     if ! (
       cd "$PROJECT_DIR"
-      "${COMPOSE[@]}" exec -T "$SERVICE" sh -lc 'rm -rf .lake lake-manifest.json build _minted-* *.aux *.fdb_latexmk *.fls *.log *.out *.pdf' 2>/dev/null \
-        || rm -rf -- .lake lake-manifest.json "$PDF_BUILD_DIR" _minted-* *.aux *.fdb_latexmk *.fls *.log *.out *.pdf
+      "${COMPOSE[@]}" exec -T "$SERVICE" sh -lc 'find build -mindepth 1 ! -name qedesk-ledger.sqlite -delete 2>/dev/null || true; rm -rf _minted-* *.aux *.fdb_latexmk *.fls *.log *.out *.pdf blueprint/web blueprint/lean_decls blueprint/src/*.paux' 2>/dev/null \
+        || (
+          mkdir -p "$PDF_BUILD_DIR"
+          find "$PDF_BUILD_DIR" -mindepth 1 ! -name qedesk-ledger.sqlite -delete 2>/dev/null || true
+          rm -rf -- _minted-* *.aux *.fdb_latexmk *.fls *.log *.out *.pdf blueprint/web blueprint/lean_decls blueprint/src/*.paux
+        )
     ); then
       echo "Some generated files are locked. Close PDF viewers and retry qedesk clean."
       exit 0
     fi
     ;;
+  cost-reset)
+    rm -f "$PROJECT_DIR/$PDF_BUILD_DIR/qedesk-ledger.sqlite"
+    ;;
   docker-clean)
-    "${COMPOSE[@]}" down --remove-orphans
+    "${COMPOSE[@]}" down --remove-orphans --volumes
     docker image rm -f qedesk || true
     ;;
   help|-h|--help)

@@ -7,6 +7,7 @@ Thanks for helping improve QEDesk.
 ```bash
 make start
 make build-lean
+./bin/qedesk audit --dry-run --max-nodes 1 src/main.tex
 make pdf
 ```
 
@@ -24,6 +25,7 @@ Use `make shell` if you need to inspect the container directly.
 ## Pull Request Checklist
 
 - `make build-lean` succeeds.
+- `./bin/qedesk audit --dry-run --max-nodes 1 src/main.tex` succeeds.
 - `make pdf` succeeds.
 - New generated files are ignored or removed.
 - README or comments are updated when commands or workflow change.

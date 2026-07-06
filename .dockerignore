@@ -1,8 +1,14 @@
 .git/
+.env
 .lake/
 build/
 outputs/
 work/
+__pycache__/
+*.pyc
+blueprint/web/
+blueprint/lean_decls
+blueprint/src/*.paux
 _minted-*/
 *.aux
 *.fdb_latexmk

@@ -23,6 +23,12 @@ jobs:
       - name: Build Lean sources
         run: make build-lean
 
+      - name: Check QEDesk router dry-run
+        run: ./bin/qedesk audit --dry-run --max-nodes 1 src/main.tex
+
+      - name: Check QEDesk cost ledger
+        run: ./bin/qedesk cost --json
+
       - name: Build PDF
         run: make pdf
 

@@ -1,0 +1,47 @@
+{
+  "openrouter": {
+    "base_url": "https://openrouter.ai/api/v1",
+    "http_referer": "https://github.com/qedesk/qedesk",
+    "title": "QEDesk"
+  },
+  "models": {
+    "flash": {
+      "id": "deepseek/deepseek-v4-flash",
+      "input_usd_per_mtok": 0.09,
+      "output_usd_per_mtok": 0.18
+    },
+    "pro": {
+      "id": "deepseek/deepseek-v4-pro",
+      "input_usd_per_mtok": 0.435,
+      "output_usd_per_mtok": 0.87
+    },
+    "critic": {
+      "id": "deepseek/deepseek-r1",
+      "input_usd_per_mtok": 0.70,
+      "output_usd_per_mtok": 2.50
+    }
+  },
+  "budget": {
+    "worksheet_tokens": 12000,
+    "node_input_tokens": 384,
+    "node_output_tokens": 256,
+    "lean_error_tokens": 320
+  },
+  "routing": {
+    "tau_uncertainty": 0.15,
+    "retries": {
+      "flash": 2,
+      "pro": 1,
+      "critic": 0
+    },
+    "critic_error_types": [
+      "hidden_premise",
+      "quantifier_drift",
+      "counterexample",
+      "statement_drift"
+    ]
+  },
+  "ledger": {
+    "path": "build/qedesk-ledger.sqlite"
+  }
+}

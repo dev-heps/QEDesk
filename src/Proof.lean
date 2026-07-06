@@ -1,32 +1,26 @@
-def S : List Nat :=
-  [1, 2, 3]
+import Mathlib.Data.Set.Basic
 
-def powerSetS : List (List Nat) :=
-  [
-    [],
-    [1],
-    [2],
-    [3],
-    [1, 2],
-    [1, 3],
-    [2, 3],
-    [1, 2, 3]
-  ]
+universe u v
 
-def usesOnlyElementsOfS (xs : List Nat) : Bool :=
-  xs.all (fun n => (n == 1) || (n == 2) || (n == 3))
+section ImagePreimage
 
-example : powerSetS.length = 8 := by
-  native_decide
+variable {A : Type u} {B : Type v}
 
-example : powerSetS.Nodup := by
-  native_decide
+theorem mem_of_mem_image_preimage
+    (f : A -> B) (B1 : Set B) {b : B}
+    (hb : Set.image f (Set.preimage f B1) b) :
+    B1 b := by
+  cases hb with
+  | intro a ha =>
+      cases ha with
+      | intro ha hfa =>
+          cases hfa
+          exact ha
 
-example : powerSetS.all usesOnlyElementsOfS = true := by
-  native_decide
+theorem image_preimage_subset
+    (f : A -> B) (B1 : Set B) :
+    Set.image f (Set.preimage f B1) <= B1 := by
+  intro b hb
+  exact mem_of_mem_image_preimage f B1 hb
 
-example : powerSetS.contains ([] : List Nat) = true := by
-  native_decide
-
-example : powerSetS.contains [1, 2, 3] = true := by
-  native_decide
+end ImagePreimage
