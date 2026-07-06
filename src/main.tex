@@ -61,6 +61,36 @@ Therefore,
   f(f^{-1}(B_1)) \subseteq B_1.
 \]
 
+\section{Fermat's Little Theorem}
+
+\subsection*{Problem}
+
+Let $p$ be a prime number and let $a$ be coprime to $p$. Prove that
+\[
+  a^{p-1} \equiv 1 \pmod p.
+\]
+
+\subsection*{Proof Blueprint}
+
+% QEDesk[node=flt_coprime_setup][kind=definition][title=Coprime residue modulo a prime][status=open]
+The assumption $\gcd(a,p)=1$ says that the residue class of $a$ modulo $p$
+is nonzero, hence a unit in the finite field with $p$ elements.
+
+% QEDesk[node=fermat_little_modEq][kind=theorem][title=Fermat's little theorem in modular form][lean=fermat_little_modEq][status=checked]
+% QEDesk[uses=flt_coprime_setup]
+If $p$ is prime and $\gcd(a,p)=1$, then
+\[
+  a^{p-1} \equiv 1 \pmod p.
+\]
+
+\subsection*{Proof Idea}
+
+This is the small, tractable Fermat theorem for QEDesk. It is not Fermat's
+Last Theorem. The key idea is that the nonzero residue classes modulo a prime
+$p$ form a finite multiplicative group of size $p-1$. Since $a$ is coprime to
+$p$, its residue class is a member of that group, so raising it to the group
+size gives the identity residue class.
+
 \subsection*{Generated Lean Map}
 
 % QEDesk generated lean-map begin
@@ -80,10 +110,17 @@ Lean status: checked.
 \]
 Lean status: checked.
 
+\paragraph{fermat\_little\_modEq.}
+\[
+  a^{p-1} \equiv 1 \pmod {p}
+\]
+Lean status: checked.
+
 \paragraph{Lean source.}
 
 \begin{minted}{lean}
 import Mathlib.Data.Set.Basic
+import Mathlib.FieldTheory.Finite.Basic
 
 universe u v
 
@@ -109,6 +146,15 @@ theorem image_preimage_subset
   exact mem_of_mem_image_preimage f B1 hb
 
 end ImagePreimage
+
+section FermatLittle
+
+theorem fermat_little_modEq
+    {p a : Nat} (hp : p.Prime) (ha : a.Coprime p) :
+    Nat.ModEq p (a ^ (p - 1)) 1 :=
+  Nat.ModEq.pow_card_sub_one_eq_one hp ha
+
+end FermatLittle
 \end{minted}
 % QEDesk generated lean-map end
 

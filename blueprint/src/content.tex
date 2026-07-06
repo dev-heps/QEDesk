@@ -36,3 +36,23 @@ If $b \in f(f^{-1}(B_1))$, then $b \in B_1$.
 The elementwise lemma proves the subset statement
 $f(f^{-1}(B_1)) \subseteq B_1$.
 \end{theorem}
+
+% QEDesk[node=flt_coprime_setup][kind=definition][status=open]
+\begin{definition}[Coprime residue modulo a prime]
+\label{def:flt_coprime_setup}
+\notready
+The assumption $\gcd(a,p)=1$ says that the residue class of $a$ modulo $p$
+is nonzero, hence a unit in the finite field with $p$ elements.
+\end{definition}
+
+% QEDesk[node=fermat_little_modEq][kind=theorem][status=checked]
+\begin{theorem}[Fermat's little theorem in modular form]
+\label{thm:fermat_little_modEq}
+\lean{fermat_little_modEq}
+\leanok
+\uses{def:flt_coprime_setup}
+If $p$ is prime and $\gcd(a,p)=1$, then
+\[
+  a^{p-1} \equiv 1 \pmod p.
+\]
+\end{theorem}

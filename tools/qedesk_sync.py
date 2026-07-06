@@ -203,6 +203,28 @@ def lean_statement_to_tex(statement: str) -> str:
             set_tex = tex_ident(subset_name)
             return rf"{f_tex}\bigl({f_tex}^{{-1}}({set_tex})\bigr) \subseteq {set_tex}"
 
+    nat_modeq_pow = re.search(
+        r"([A-Za-z_][A-Za-z0-9_']*)\s*\^\s*\(\s*([A-Za-z_][A-Za-z0-9_']*)\s*-\s*1\s*\)"
+        r"\s*\u2261\s*1\s*\[MOD\s+\2\]",
+        compact,
+    )
+    if nat_modeq_pow:
+        base_name, modulus_name = nat_modeq_pow.groups()
+        base_tex = tex_ident(base_name)
+        modulus_tex = tex_ident(modulus_name)
+        return rf"{base_tex}^{{{modulus_tex}-1}} \equiv 1 \pmod {{{modulus_tex}}}"
+
+    nat_modeq_ascii = re.search(
+        r"Nat\.ModEq\s+([A-Za-z_][A-Za-z0-9_']*)\s+"
+        r"\(\s*([A-Za-z_][A-Za-z0-9_']*)\s*\^\s*\(\s*\1\s*-\s*1\s*\)\s*\)\s+1",
+        compact,
+    )
+    if nat_modeq_ascii:
+        modulus_name, base_name = nat_modeq_ascii.groups()
+        base_tex = tex_ident(base_name)
+        modulus_tex = tex_ident(modulus_name)
+        return rf"{base_tex}^{{{modulus_tex}-1}} \equiv 1 \pmod {{{modulus_tex}}}"
+
     return r"\texttt{" + compact.replace("\\", r"\textbackslash{}").replace("_", r"\_") + "}"
 
 
