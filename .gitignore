@@ -19,3 +19,4 @@ _minted-*/
 *.log
 *.out
 *.pdf
+!paper/qedesk-arxiv.pdf

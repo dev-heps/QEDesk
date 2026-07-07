@@ -1,0 +1,499 @@
+\pdfoutput=1
+\documentclass[11pt]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage[margin=1in]{geometry}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{listings}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue!55!black,
+  citecolor=blue!55!black,
+  urlcolor=blue!55!black
+}
+
+\lstset{
+  basicstyle=\ttfamily\small,
+  columns=fullflexible,
+  breaklines=true,
+  frame=single,
+  xleftmargin=0.5em,
+  xrightmargin=0.5em
+}
+
+\newcommand{\qedesk}{\textsc{QEDesk}}
+\newcommand{\lean}{Lean 4}
+\newcommand{\mathlib}{Mathlib}
+\newcommand{\mcp}{MCP}
+
+\title{\qedesk: A Local Proof-Audit Workstation for Undergraduate Mathematics}
+
+\author{
+  Dongwoo Lee\\
+  \small QEDesk project\\
+  \small \url{https://github.com/dev-heps/QEDesk}
+}
+
+\date{Draft version: July 7, 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+\qedesk{} is a local workstation for undergraduate mathematics that combines
+\lean{}, LaTeX, Python, OpenCode-style agent workflows, OpenRouter-compatible
+model calls, and model-context-protocol tooling.  Its central design rule is
+that language models may audit, decompose, explain, and propose candidates, but
+\lean{} remains the final verifier.  The system is intended for students who
+write informal proofs in LaTeX and want structured feedback about missing
+justifications, quantifier mistakes, hidden hypotheses, set-membership errors,
+and statement drift before attempting a full formalization.  This technical
+report describes the prototype architecture, the proof-audit data contracts,
+the blueprint-and-DAG workflow, and a budget-aware model-routing layer.  We
+position \qedesk{} as an educational proof-audit workstation rather than an
+autonomous theorem-proving benchmark system.
+\end{abstract}
+
+\section{Introduction}
+
+Students often learn proof writing through a fragile loop: write an informal
+argument, receive delayed feedback, and then discover that a step described as
+``obvious'' hides a missing hypothesis or a quantifier error.  Large language
+models can give immediate feedback, but they can also smooth over precisely the
+logical gaps that the student needs to see.  At the same time, theorem provers
+such as \lean{} can certify formal proofs, but the jump from informal prose to
+fully formal proof scripts is steep for beginners.
+
+\qedesk{} is designed as a local bridge between these two modes.  The student
+keeps a human-readable LaTeX notebook, writes or sketches Lean targets in a
+nearby file, and uses an assistant only as a proof auditor and candidate
+generator.  The assistant is not allowed to declare success merely because a
+response sounds plausible.  A mathematical claim is considered formally checked
+only after \lean{} accepts it.
+
+The project is deliberately modest.  It is not a new theorem prover, not a
+replacement for \mathlib{}, and not a benchmark claim that one particular model
+is the best at mathematics.  Its contribution is an engineering pattern for
+local, student-facing proof feedback: decompose first, audit locally, formalize
+one node at a time, and use the prover as the authority.
+
+This report makes three concrete contributions:
+
+\begin{enumerate}[leftmargin=2em]
+  \item a proof-audit protocol that classifies local gaps in informal
+  undergraduate proofs before asking for Lean tactics;
+  \item an artifact structure that connects LaTeX notes, Lean declarations,
+  Lean Blueprint pages, and a QEDesk-specific dependency sidecar; and
+  \item a budget-aware model-routing policy that records cost and treats model
+  output as advisory until Lean verifies the relevant formal target.
+\end{enumerate}
+
+\section{Background and Related Work}
+
+\paragraph{Lean and Mathlib.}
+\lean{} is both a theorem prover and a programming language with an extensible
+elaborator, tactic framework, and editor-facing language server
+\cite{lean4}.  \mathlib{} provides the large mathematical library on which many
+Lean developments depend, together with a community process for maintaining
+formalized mathematics at scale \cite{mathlib}.  \qedesk{} builds on this
+ecosystem rather than replacing it: Lean provides the formal kernel and
+\mathlib{} supplies the mathematical vocabulary.
+
+\paragraph{Open theorem-proving environments.}
+Recent systems such as LeanDojo expose Lean programmatically for data
+extraction, premise selection, environment interaction, and reproducible
+machine-learning experiments \cite{leandojo}.  REAL-Prover is another
+retrieval-augmented Lean 4 prover that focuses on stepwise theorem proving and
+college-level mathematical reasoning benchmarks \cite{realprover}.  These
+systems motivate the use of retrieval, local proof states, and iterative Lean
+feedback.  \qedesk{} differs in emphasis: it targets a study workstation whose
+default task is to audit a student's informal reasoning, not to maximize
+Pass@\(k\) on a prover benchmark.
+
+\paragraph{Education-oriented Lean interfaces.}
+Verbose Lean uses controlled natural language and custom Lean tooling to help
+undergraduate students transfer proof-assistant work back to traditional paper
+proofs \cite{verboselean}.  \qedesk{} shares this pedagogical concern but keeps
+the student's primary artifact as LaTeX prose.  Rather than replacing proof
+writing with a controlled language, it audits the prose, records a blueprint,
+and asks Lean to check only stable local targets.
+
+\paragraph{Blueprints, automation, and budgeted model use.}
+Lean Blueprint provides a way to organize formalization projects around
+definitions, lemmas, theorem statements, and dependency graphs
+\cite{leanblueprint}.  Automated tactics such as Aesop show how bounded proof
+search can be useful when it remains inside Lean's checking discipline
+\cite{aesop}.  On the model side, cascade-style approaches such as FrugalGPT
+motivate routing routine calls to cheaper models and reserving expensive calls
+for harder cases \cite{frugalgpt}.  \qedesk{} combines these ideas in a
+student-facing workflow: graph first, local proof state second, model hint
+third, and Lean verification last.
+
+\section{Design Requirements}
+
+\qedesk{} follows four design requirements.
+
+\begin{enumerate}[leftmargin=2em]
+  \item \textbf{Local first.}  The workstation keeps the student's LaTeX notes,
+  Lean files, generated graphs, and cost ledger in the project directory or in
+  explicitly disposable local build outputs.
+
+  \item \textbf{Verifier first.}  The assistant can propose a repair, a lemma,
+  or a tactic family, but \lean{} is the only component allowed to verify a
+  formal proof.
+
+  \item \textbf{Pedagogical hints before solutions.}  The default response is a
+  local hint or gap classification, not a polished complete proof.
+
+  \item \textbf{Replaceable models.}  Model names and prices are configuration
+  details.  The workflow should continue to make sense when the cheap model,
+  strong model, or provider changes.
+\end{enumerate}
+
+\section{Architecture}
+
+The workstation separates retrieval, proof-state communication, formal
+verification, and language-model reasoning.  Table~\ref{tab:components}
+summarizes the boundary between components.
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{lll}
+\toprule
+Component & Responsibility & Non-responsibility \\
+\midrule
+RAG/search & Retrieve definitions, lemmas, notes, examples & Decide correctness \\
+\mcp{} & Expose current Lean goals and diagnostics & Store global knowledge \\
+\lean{} & Check formal statements and proof candidates & Teach prose style \\
+Language model & Audit, decompose, explain, propose & Certify proofs \\
+LaTeX & Preserve the student's notebook & Serve as formal truth \\
+\bottomrule
+\end{tabular}
+\caption{QEDesk component boundaries.}
+\label{tab:components}
+\end{table}
+
+The intended loop is local rather than monolithic:
+
+\begin{lstlisting}
+LaTeX proof note
+  -> local proof audit
+  -> blueprint DAG
+  -> one Lean statement or lemma
+  -> Lean check through Lake or MCP
+  -> repair hint
+  -> updated student note
+\end{lstlisting}
+
+This loop avoids sending the entire project, entire chat transcript, or full
+\mathlib{} context to a model on every request.  It also avoids asking a model
+to produce a complete proof script before the statement and local dependencies
+are stable.
+
+\section{Proof-Audit Protocol}
+
+The proof-audit protocol begins by naming the assumptions, variables,
+quantifiers, and exact goal.  The proof is then split into local inference
+steps.  Each nontrivial step is marked as one of:
+
+\begin{itemize}[leftmargin=2em]
+  \item \texttt{verified};
+  \item \texttt{missing-justification};
+  \item \texttt{false};
+  \item \texttt{unclear}.
+\end{itemize}
+
+For implementation, \qedesk{} uses a fixed gap taxonomy:
+
+\begin{center}
+\small
+\begin{tabular}{lll}
+\texttt{quantifier-jump} & \texttt{missing-hypothesis} & \texttt{missing-justification} \\
+\texttt{false-inference} & \texttt{undefined-symbol} & \texttt{ambiguous-expression} \\
+\texttt{set-membership-gap} & \texttt{calculation-gap} & \texttt{visual-dependence} \\
+\texttt{statement-drift} & \texttt{unspecified} & \\
+\end{tabular}
+\end{center}
+
+Hint levels range from level 0, which only highlights the suspicious span, to
+level 4, which may include a Lean candidate patch.  Level 4 output remains a
+candidate until Lean checks it.
+
+The protocol is intentionally resistant to compressed answers.  Phrases such
+as ``clearly'' or ``trivially'' are treated as insufficient unless they are
+backed by a named definition, theorem, calculation, or Lean-checkable argument.
+
+\section{Blueprint and DAG Workflow}
+
+For nontrivial exercises, \qedesk{} first builds a small blueprint.  A blueprint
+contains definitions, local lemmas, the final theorem, and dependency edges.
+Each node may have an informal statement, an optional Lean declaration name,
+a status, and gap metadata.  In the current prototype, the editable source of
+this graph is the student's LaTeX file, using comments that do not affect PDF
+rendering:
+
+\begin{lstlisting}[language=TeX]
+% QEDesk[node=mem_power_set][kind=lemma]
+% QEDesk[uses=def_power_set]
+\end{lstlisting}
+
+The command-line synchronizer reads these comments and the Lean declarations,
+then generates three disposable artifacts:
+
+\begin{itemize}[leftmargin=2em]
+  \item Lean Blueprint source under \texttt{blueprint/src/content.tex};
+  \item a machine-readable sidecar at \texttt{build/qedesk-dag.json};
+  \item a Mermaid dependency graph at \texttt{build/qedesk-dag.mmd}.
+\end{itemize}
+
+The web view is generated by Lean Blueprint.  \qedesk{} adds only a small view
+switching layer around the generated pages, while treating the upstream
+Blueprint renderer as the graph and document viewer.
+
+\section{Token-Aware Model Routing}
+
+\qedesk{} treats model calls as a budgeted resource.  The default cascade is a
+cheap worker, then a stronger planner, then a deeper critic.  In the current
+configuration these roles are mapped to OpenRouter-compatible DeepSeek model
+identifiers, but the architecture is not tied to those names.
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{llll}
+\toprule
+Stage & Primary role & Escalation role & Context sent \\
+\midrule
+Audit & cheap worker & strong planner & local node and snippet \\
+Blueprint & cheap worker & strong planner & node plus parents \\
+Formalize & cheap worker & strong planner & statement skeleton \\
+Repair & cheap worker & critic & Lean error excerpt \\
+Verify & Lean server & none & formal file \\
+\bottomrule
+\end{tabular}
+\caption{Budget-aware routing policy.}
+\label{tab:routing}
+\end{table}
+
+The router prototype supports dry runs, real OpenRouter calls, and a SQLite
+cost ledger.  It logs the worksheet id, node id, stage, model name, prompt and
+completion token counts, estimated cost, elapsed time, outcome, and Lean
+status.  Its output is advisory JSON; it is not proof verification.
+
+\section{Implementation}
+
+The repository is organized around a small set of files:
+
+\begin{lstlisting}
+src/main.tex           student-facing LaTeX note
+src/Proof.lean         Lean statements and proofs
+AGENTS.md              assistant behavior rules
+docs/ARCHITECTURE.md   system design
+docs/DATA_CONTRACTS.md gap labels and DAG contracts
+tools/qedesk_sync.py   LaTeX/Lean/Blueprint synchronizer
+tools/qedesk_router.py OpenRouter routing prototype
+bin/qedesk             command-line wrapper
+\end{lstlisting}
+
+The common local workflow is:
+
+\begin{lstlisting}
+./bin/qedesk audit --dry-run --max-nodes 1 src/main.tex
+./bin/qedesk sync
+./bin/qedesk lean
+./bin/qedesk pdf
+./bin/qedesk blueprint
+\end{lstlisting}
+
+The Docker-based workstation can provide \lean{}, Lake, LaTeX, Python,
+\texttt{lean-lsp-mcp}, Lean Blueprint, and related tools in one environment.
+For source-only review, the repository can also be cloned and inspected without
+running the container.  This distinction is important for distribution:
+generated artifacts, cost ledgers, local API keys, Lean build products, and
+Docker images are not part of the source archive.
+
+\section{Current Status and Evaluation Plan}
+
+\qedesk{} is currently a prototype artifact.  The implemented parts are the
+source layout, command wrappers, documentation, proof-audit contracts, Lean
+Blueprint synchronization, Mermaid sidecar generation, and a conservative
+OpenRouter routing prototype.  The system does not yet include a controlled
+user study, a large benchmark evaluation, or learned routing thresholds.
+
+For a tool paper of this kind, the relevant near-term evaluation is not a
+single theorem-proving score.  We instead track four artifact-level questions:
+
+\begin{enumerate}[leftmargin=2em]
+  \item \textbf{Faithfulness.}  Does the Lean statement still match the
+  student's informal claim, or has statement drift occurred?
+  \item \textbf{Locality.}  Does the assistant repair the failing node rather
+  than rewriting the whole proof?
+  \item \textbf{Verification.}  Does every claimed formal success correspond to
+  a successful Lean check?
+  \item \textbf{Cost.}  How many model tokens and retries are spent per useful
+  proof-audit iteration?
+\end{enumerate}
+
+Future quantitative evaluation should therefore report cost per checked node,
+number of repaired local gaps, statement-drift incidents, and Lean-verified
+successes.  Until such an evaluation exists, \qedesk{} should be read as a
+reproducible workflow proposal and open-source prototype rather than as a
+state-of-the-art prover.
+
+\section{Example Use}
+
+Consider a typical set-theoretic statement about a function
+\(f : A \to B\) and a subset \(B_1 \subseteq B\):
+
+\[
+  f(f^{-1}(B_1)) \subseteq B_1.
+\]
+
+A compressed informal proof may jump from
+\(b \in f(f^{-1}(B_1))\) to \(b \in B_1\) without expanding the definition of
+image and preimage.  \qedesk{} should not immediately write the finished
+solution.  Instead, it should expose the local obligation:
+
+\begin{quote}
+If \(b \in f(f^{-1}(B_1))\), then there exists an \(a\) such that
+\(a \in f^{-1}(B_1)\) and \(f(a)=b\).  To conclude \(b \in B_1\), expand the
+definition of preimage to obtain \(f(a) \in B_1\), then rewrite using
+\(f(a)=b\).
+\end{quote}
+
+At a higher hint level, the corresponding Lean node can be attempted and
+checked.  If Lean rejects the candidate, the repair prompt should include only
+the local goal state or concise error excerpt, not the full worksheet.
+
+\section{Limitations}
+
+The current prototype is not a complete autonomous proof agent.  Several parts
+are intentionally conservative:
+
+\begin{itemize}[leftmargin=2em]
+  \item The synchronizer relies on explicit comments rather than unrestricted
+  natural-language parsing.
+  \item Router output is structured advice, not formal evidence.
+  \item MCP integration depends on the editor and client environment.
+  \item The system does not claim benchmark-level theorem-proving performance.
+  \item Cost estimates depend on provider prices and must be refreshed.
+\end{itemize}
+
+These limitations are acceptable for the intended educational use case.  The
+goal is to make logical gaps visible and to keep the student close to the
+verification loop, not to hide the work behind an automatic final answer.
+
+\section{Artifact Availability and Reproducibility}
+
+The project is released as open-source software under the MIT license:
+
+\begin{center}
+\url{https://github.com/dev-heps/QEDesk}
+\end{center}
+
+The repository includes setup instructions, command wrappers, data contracts,
+and documentation for the proof-audit workflow.  API keys, local cost ledgers,
+intermediate LaTeX build products, Lean build products, and Docker images are
+excluded from version control.  The compiled draft of this report is checked in
+as a convenience artifact.
+
+The intended source-level reproduction path is:
+
+\begin{lstlisting}
+git clone https://github.com/dev-heps/QEDesk
+cd QEDesk
+./bin/qedesk audit --dry-run --max-nodes 1 src/main.tex
+\end{lstlisting}
+
+The optional full workstation path additionally starts the container and builds
+Lean and LaTeX artifacts:
+
+\begin{lstlisting}
+./bin/qedesk start
+./bin/qedesk prepare
+./bin/qedesk lean
+./bin/qedesk pdf
+./bin/qedesk blueprint
+\end{lstlisting}
+
+Real model calls require a user-provided OpenRouter key in a local
+\texttt{.env} file.  This key is deliberately not part of the archived source.
+
+\section{Conclusion}
+
+\qedesk{} frames AI-assisted mathematics as a disciplined verification loop.
+The student writes informal mathematics, the model audits and proposes local
+next steps, the blueprint records dependencies, and \lean{} decides which
+formal candidates actually pass.  This architecture shifts the engineering
+focus away from finding a single perfect model and toward building a workflow
+that remains useful as models, prices, and theorem-proving tools change.
+
+\begin{thebibliography}{99}
+
+\bibitem{lean4}
+Leonardo de Moura and Sebastian Ullrich.
+\newblock The Lean 4 theorem prover and programming language.
+\newblock In \emph{Automated Deduction -- CADE 28}, 2021.
+
+\bibitem{mathlib}
+The mathlib community.
+\newblock The Lean mathematical library.
+\newblock In \emph{Proceedings of the 9th ACM SIGPLAN International
+Conference on Certified Programs and Proofs}, 2020.
+
+\bibitem{leanblueprint}
+Patrick Massot.
+\newblock Lean Blueprint.
+\newblock \url{https://github.com/PatrickMassot/leanblueprint}.
+
+\bibitem{leandojo}
+Kaiyu Yang, Aidan M. Swope, Alex Gu, Rahul Chalamala, Peiyang Song,
+Shixing Yu, Saad Godil, Ryan Prenger, and Anima Anandkumar.
+\newblock LeanDojo: Theorem proving with retrieval-augmented language models.
+\newblock \emph{arXiv:2306.15626}, 2023.
+
+\bibitem{realprover}
+Ziju Shen, Naohao Huang, Fanyi Yang, Yutong Wang, Guoxiong Gao, Tianyi Xu,
+Jiedong Jiang, Wanyi He, Pu Yang, Mengzhou Sun, Haocheng Ju, Peihao Wu,
+Bryan Dai, and Bin Dong.
+\newblock REAL-Prover: Retrieval augmented Lean prover for mathematical
+reasoning.
+\newblock \emph{arXiv:2505.20613}, 2025.
+
+\bibitem{verboselean}
+Patrick Massot.
+\newblock Teaching mathematics using Lean and controlled natural language.
+\newblock In \emph{15th International Conference on Interactive Theorem
+Proving (ITP 2024)}, 2024.
+
+\bibitem{aesop}
+Jannis Limperg and Asta Halkj{\ae}r From.
+\newblock Aesop: White-box best-first proof search for Lean.
+\newblock In \emph{Proceedings of the 12th ACM SIGPLAN International
+Conference on Certified Programs and Proofs}, 2023.
+
+\bibitem{frugalgpt}
+Lingjiao Chen, Matei Zaharia, and James Zou.
+\newblock FrugalGPT: How to use large language models while reducing cost and
+improving performance.
+\newblock \emph{arXiv:2305.05176}, 2023.
+
+\bibitem{modelcontextprotocol}
+Model Context Protocol.
+\newblock \url{https://modelcontextprotocol.io/}.
+
+\bibitem{qedesk}
+QEDesk contributors.
+\newblock QEDesk source repository.
+\newblock \url{https://github.com/dev-heps/QEDesk}.
+
+\end{thebibliography}
+
+\end{document}
