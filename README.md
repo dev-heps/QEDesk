@@ -35,6 +35,10 @@ not churn through the host filesystem.
 
 On Windows, use `bin\qedesk.bat` from PowerShell or run `./bin/qedesk` from WSL.
 
+For a source-first Codex setup, read
+[`docs/CODEX_INSTALL.md`](docs/CODEX_INSTALL.md). It explains how to clone,
+audit, run only optional runtime checks, and clean local Docker/WSL artifacts.
+
 ## Quick Start
 
 ```bash
