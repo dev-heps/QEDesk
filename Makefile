@@ -1,6 +1,6 @@
 QEDESK := ./bin/qedesk
 
-.PHONY: start stop restart status shell files contracts sync blueprint serve prepare cache build-lean pdf agent audit cost clean docker-clean
+.PHONY: start stop restart status shell files new list contracts sync blueprint serve prepare cache build-lean pdf agent audit cost clean docker-clean
 
 start:
 	$(QEDESK) start
@@ -19,6 +19,12 @@ shell:
 
 files:
 	$(QEDESK) files
+
+new:
+	$(QEDESK) new $(slug)
+
+list:
+	$(QEDESK) list
 
 contracts:
 	$(QEDESK) contracts

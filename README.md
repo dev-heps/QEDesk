@@ -73,6 +73,10 @@ container first:
 ./bin/qedesk status        # Show container status
 ./bin/qedesk shell         # Open a shell inside the container
 ./bin/qedesk files         # Show the main files to edit
+./bin/qedesk storage       # Show project and Docker storage use
+./bin/qedesk new           # Create a worksheet under worksheets/<slug>
+./bin/qedesk list          # List worksheet directories
+./bin/qedesk info          # Show worksheet paths
 ./bin/qedesk contracts     # Show QEDesk v0.2 contract files
 ./bin/qedesk sync          # Sync Lean declarations into TeX, blueprint, and DAG files
 ./bin/qedesk blueprint     # Build blueprint/web/index.html and the dependency graph
@@ -113,6 +117,39 @@ Then use QEDesk commands to check or build them:
 ./bin/qedesk route mem_of_mem_image_preimage
 ./bin/qedesk cost
 ```
+
+## Worksheet Workflow
+
+Use `src/main.tex` and `src/Proof.lean` as the default starter workbook. For
+ongoing study, create one worksheet per problem or topic:
+
+```bash
+./bin/qedesk new number-theory/fermat-little --title "Fermat's Little Theorem"
+./bin/qedesk list
+./bin/qedesk info number-theory/fermat-little
+```
+
+Each worksheet has its own source files:
+
+```text
+worksheets/number-theory/fermat-little/main.tex
+worksheets/number-theory/fermat-little/Proof.lean
+```
+
+Run the same QEDesk loop against the worksheet directory:
+
+```bash
+./bin/qedesk lean worksheets/number-theory/fermat-little
+./bin/qedesk sync worksheets/number-theory/fermat-little
+./bin/qedesk pdf worksheets/number-theory/fermat-little
+./bin/qedesk blueprint worksheets/number-theory/fermat-little
+./bin/qedesk audit --dry-run worksheets/number-theory/fermat-little
+```
+
+Generated worksheet outputs live under the worksheet's own `build/` and
+`blueprint/web/` directories and are ignored by Git. Root build artifacts can
+be reset at any time with `./bin/qedesk clean`; the local cost ledger is kept
+unless you explicitly run `./bin/qedesk cost-reset`.
 
 If you forget where the files are:
 

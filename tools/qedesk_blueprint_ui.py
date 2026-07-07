@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import argparse
 from pathlib import Path
 
 
@@ -57,9 +58,15 @@ def inject(path: Path) -> None:
 
 
 def main() -> None:
-    inject(WEB_DIR / "index.html")
-    inject(WEB_DIR / "dep_graph_document.html")
-    print(f"QEDesk Blueprint switcher updated in {WEB_DIR}")
+    parser = argparse.ArgumentParser(description="Inject QEDesk view switcher into Lean Blueprint HTML output.")
+    parser.add_argument("web_dir", nargs="?", default=str(WEB_DIR))
+    args = parser.parse_args()
+    web_dir = Path(args.web_dir)
+    if not web_dir.is_absolute():
+        web_dir = PROJECT_ROOT / web_dir
+    inject(web_dir / "index.html")
+    inject(web_dir / "dep_graph_document.html")
+    print(f"QEDesk Blueprint switcher updated in {web_dir}")
 
 
 if __name__ == "__main__":

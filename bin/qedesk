@@ -7,6 +7,18 @@ COMPOSE=(docker compose --project-directory "$PROJECT_DIR")
 SERVICE=qedesk
 PDF_BUILD_DIR=build
 
+is_worksheet() {
+  local target="${1:-}"
+  [ -n "$target" ] \
+    && [ -d "$PROJECT_DIR/$target" ] \
+    && [ -f "$PROJECT_DIR/$target/main.tex" ] \
+    && [ -f "$PROJECT_DIR/$target/Proof.lean" ]
+}
+
+shell_quote() {
+  printf "%q" "$1"
+}
+
 is_running() {
   "${COMPOSE[@]}" ps --status running --services 2>/dev/null | grep -qx "$SERVICE"
 }
@@ -34,6 +46,10 @@ Commands:
   status        Show container status
   shell         Open a shell inside the container
   files         Show the main files to edit
+  storage       Show project and Docker storage use
+  new           Create a worksheet under worksheets/<slug>
+  list          List worksheet directories
+  info          Show worksheet paths
   contracts     Show QEDesk v0.2 data-contract files
   sync          Sync Lean declarations into TeX, blueprint, and DAG files
   blueprint     Build the Lean Blueprint HTML visualization
@@ -95,6 +111,16 @@ Use:
   ./bin/qedesk pdf
 EOF
     ;;
+  storage)
+    echo "Project generated files:"
+    (
+      cd "$PROJECT_DIR"
+      du -sh .lake build blueprint outputs worksheets 2>/dev/null || true
+    )
+    echo
+    echo "Docker storage:"
+    docker system df -v
+    ;;
   contracts)
     cat <<EOF
 QEDesk v0.2 data contracts:
@@ -122,6 +148,20 @@ EOF
     ;;
   blueprint)
     require_running
+    if is_worksheet "${1:-}"; then
+      worksheet="$1"
+      worksheet_q="$(shell_quote "$worksheet")"
+      "${COMPOSE[@]}" exec -T "$SERVICE" python tools/qedesk_sync.py "$worksheet"
+      "${COMPOSE[@]}" exec -T "$SERVICE" sh -lc "cd $worksheet_q && leanblueprint web"
+      "${COMPOSE[@]}" exec -T "$SERVICE" python tools/qedesk_blueprint_ui.py "$worksheet/blueprint/web"
+      echo
+      echo "Blueprint HTML written to: $PROJECT_DIR/$worksheet/blueprint/web/index.html"
+      echo "Dependency graph written to: $PROJECT_DIR/$worksheet/blueprint/web/dep_graph_document.html"
+      echo
+      echo "To view it through the upstream Lean Blueprint server:"
+      echo "  ./bin/qedesk serve $worksheet"
+      exit 0
+    fi
     "${COMPOSE[@]}" exec -T "$SERVICE" python tools/qedesk_sync.py
     "${COMPOSE[@]}" exec -T "$SERVICE" leanblueprint web "$@"
     "${COMPOSE[@]}" exec -T "$SERVICE" python tools/qedesk_blueprint_ui.py
@@ -134,6 +174,19 @@ EOF
     ;;
   serve)
     require_running
+    if is_worksheet "${1:-}"; then
+      worksheet="$1"
+      worksheet_q="$(shell_quote "$worksheet")"
+      if [ ! -f "$PROJECT_DIR/$worksheet/blueprint/web/index.html" ] || [ ! -f "$PROJECT_DIR/$worksheet/blueprint/web/dep_graph_document.html" ]; then
+        "${COMPOSE[@]}" exec -T "$SERVICE" python tools/qedesk_sync.py "$worksheet"
+        "${COMPOSE[@]}" exec -T "$SERVICE" sh -lc "cd $worksheet_q && leanblueprint web"
+        "${COMPOSE[@]}" exec -T "$SERVICE" python tools/qedesk_blueprint_ui.py "$worksheet/blueprint/web"
+      fi
+      echo "Serving Blueprint at http://localhost:8000/"
+      echo "Dependency graph: http://localhost:8000/dep_graph_document.html"
+      "${COMPOSE[@]}" exec "$SERVICE" sh -lc "cd $worksheet_q && leanblueprint serve"
+      exit 0
+    fi
     if [ ! -f "$PROJECT_DIR/blueprint/web/index.html" ] || [ ! -f "$PROJECT_DIR/blueprint/web/dep_graph_document.html" ]; then
       "${COMPOSE[@]}" exec -T "$SERVICE" python tools/qedesk_sync.py
       "${COMPOSE[@]}" exec -T "$SERVICE" leanblueprint web
@@ -153,10 +206,27 @@ EOF
     ;;
   lean|build-lean)
     require_running
-    "${COMPOSE[@]}" exec "$SERVICE" lake build Proof "$@"
+    if is_worksheet "${1:-}"; then
+      worksheet="$1"
+      shift
+      "${COMPOSE[@]}" exec "$SERVICE" lake env lean "$worksheet/Proof.lean" "$@"
+    else
+      "${COMPOSE[@]}" exec "$SERVICE" lake build Proof "$@"
+    fi
     ;;
   pdf)
     require_running
+    if is_worksheet "${1:-}"; then
+      worksheet="$1"
+      shift
+      worksheet_q="$(shell_quote "$worksheet")"
+      if ! "${COMPOSE[@]}" exec "$SERVICE" sh -lc "cd $worksheet_q && mkdir -p build && latexmk -pdf -g -shell-escape -interaction=nonstopmode -halt-on-error -output-directory=build main.tex" "$@"; then
+        echo
+        echo "PDF build failed. Check $worksheet/build/main.log."
+        exit 1
+      fi
+      exit 0
+    fi
     mkdir -p "$PROJECT_DIR/$PDF_BUILD_DIR"
     if ! "${COMPOSE[@]}" exec "$SERVICE" latexmk -pdf -g -shell-escape -interaction=nonstopmode -halt-on-error -output-directory="$PDF_BUILD_DIR" src/main.tex "$@"; then
       echo
@@ -193,6 +263,15 @@ EOF
     require_running
     "${COMPOSE[@]}" exec -T "$SERVICE" python tools/qedesk_router.py "$command" "$@"
     ;;
+  new)
+    python3 "$PROJECT_DIR/tools/qedesk_worksheet.py" new "$@"
+    ;;
+  list)
+    python3 "$PROJECT_DIR/tools/qedesk_worksheet.py" list "$@"
+    ;;
+  info)
+    python3 "$PROJECT_DIR/tools/qedesk_worksheet.py" info "$@"
+    ;;
   clean)
     if ! (
       cd "$PROJECT_DIR"
@@ -202,6 +281,8 @@ EOF
           find "$PDF_BUILD_DIR" -mindepth 1 ! -name qedesk-ledger.sqlite -delete 2>/dev/null || true
           rm -rf -- _minted-* *.aux *.fdb_latexmk *.fls *.log *.out *.pdf blueprint/web blueprint/lean_decls blueprint/src/*.paux
         )
+      find worksheets -type d \( -path '*/build' -o -path '*/blueprint/web' -o -path '*/blueprint/lean_decls' \) -prune -exec rm -rf {} + 2>/dev/null || true
+      find worksheets -path '*/blueprint/src/*.paux' -delete 2>/dev/null || true
     ); then
       echo "Some generated files are locked. Close PDF viewers and retry qedesk clean."
       exit 0

@@ -413,8 +413,14 @@ def run_stage(args: argparse.Namespace, stage: str) -> int:
     config = qedesk_ledger.load_config(project_path(args.config))
     conn = qedesk_ledger.connect(config)
     tex_path = project_path(args.path)
+    if tex_path.is_dir():
+        tex_path = tex_path / "main.tex"
+    if args.lean:
+        lean_path = project_path(args.lean)
+    else:
+        lean_path = tex_path.parent / "Proof.lean"
     worksheet_id = args.worksheet or default_worksheet_id(tex_path)
-    nodes = load_nodes(tex_path, project_path(args.lean))
+    nodes = load_nodes(tex_path, lean_path)
     nodes_by_id = node_map(nodes)
     selected = select_nodes(nodes, args.node, args.max_nodes)
     lean_error = ""
@@ -514,7 +520,7 @@ def cmd_init_ledger(args: argparse.Namespace) -> int:
 def add_stage_parser(subparsers: Any, name: str, default_out: str) -> None:
     parser = subparsers.add_parser(name)
     parser.add_argument("path", nargs="?", default="src/main.tex")
-    parser.add_argument("--lean", default="src/Proof.lean")
+    parser.add_argument("--lean")
     parser.add_argument("--node")
     parser.add_argument("--worksheet")
     parser.add_argument("--tier", choices=["flash", "pro", "critic"])

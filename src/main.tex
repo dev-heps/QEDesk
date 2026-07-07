@@ -60,7 +60,7 @@
 \DeclareUnicodeCharacter{27E8}{\ensuremath{\langle}}
 \DeclareUnicodeCharacter{27E9}{\ensuremath{\rangle}}
 
-\title{QEDesk}
+\title{QEDesk Workspace}
 \author{}
 \date{\today}
 
@@ -69,81 +69,23 @@
 \begin{document}
 \maketitle
 
-\section{Images and Preimages}
+\section{Problem}
 
-\subsection*{Problem}
+Write or paste the next problem statement here.
 
-Let $f : A \to B$ be a function and let $B_1 \subseteq B$. Prove that
-\[
-  f\bigl(f^{-1}(B_1)\bigr) \subseteq B_1.
-\]
+\section{Proof Blueprint}
 
-\subsection*{Proof Blueprint}
+% QEDesk[node=starter_definition][kind=definition][title=Starter definition][status=open]
+Record the first useful definition, assumption, or local invariant here.
 
-% QEDesk[node=image_membership][kind=definition][title=Membership in an image][status=open]
-For a set $S \subseteq A$, the assertion $b \in f(S)$ means that there is
-some $a \in S$ such that $f(a)=b$.
+% QEDesk[node=starter_example][kind=theorem][title=Starter example][lean=starter_example][status=checked]
+% QEDesk[uses=starter_definition]
+If $P$ is true, then $P$ is true.
 
-% QEDesk[node=preimage_membership][kind=definition][title=Membership in a preimage][status=open]
-The assertion $a \in f^{-1}(B_1)$ means exactly that $f(a) \in B_1$.
+\section{Proof Idea}
 
-% QEDesk[node=mem_of_mem_image_preimage][kind=lemma][title=Element chase through image and preimage][lean=mem_of_mem_image_preimage][status=checked]
-% QEDesk[uses=image_membership,preimage_membership]
-If $b \in f(f^{-1}(B_1))$, then $b \in B_1$.
-
-% QEDesk[node=image_preimage_subset][kind=theorem][title=Image of a preimage is contained in the target set][lean=image_preimage_subset][status=checked]
-% QEDesk[uses=mem_of_mem_image_preimage]
-The elementwise lemma proves the subset statement
-$f(f^{-1}(B_1)) \subseteq B_1$.
-
-\subsection*{Proof Idea}
-
-To prove a subset relation, start with an arbitrary element of the left-hand
-side and prove that it belongs to the right-hand side.
-
-Suppose $b \in f(f^{-1}(B_1))$. Then there exists some $a \in A$ such that
-\[
-  a \in f^{-1}(B_1)
-  \quad\text{and}\quad
-  f(a) = b.
-\]
-Since $a \in f^{-1}(B_1)$, by the definition of preimage we have
-$f(a) \in B_1$. Since $f(a)=b$, it follows that $b \in B_1$.
-
-Therefore,
-\[
-  f(f^{-1}(B_1)) \subseteq B_1.
-\]
-
-\section{Fermat's Little Theorem}
-
-\subsection*{Problem}
-
-Let $p$ be a prime number and let $a$ be coprime to $p$. Prove that
-\[
-  a^{p-1} \equiv 1 \pmod p.
-\]
-
-\subsection*{Proof Blueprint}
-
-% QEDesk[node=flt_coprime_setup][kind=definition][title=Coprime residue modulo a prime][status=open]
-The assumption $\gcd(a,p)=1$ says that the residue class of $a$ modulo $p$
-is nonzero, hence a unit in the finite field with $p$ elements.
-
-% QEDesk[node=fermat_little_modEq][kind=theorem][title=Fermat's little theorem in modular form][lean=fermat_little_modEq][status=checked]
-% QEDesk[uses=flt_coprime_setup]
-If $p$ is prime and $\gcd(a,p)=1$, then
-\[
-  a^{p-1} \equiv 1 \pmod p.
-\]
-
-\subsection*{Proof Idea}
-
-This is the small, tractable Fermat theorem for QEDesk. It is not Fermat's
-Last Theorem. The key idea is that the nonzero residue classes modulo a prime
-$p$ form a finite multiplicative group of size $p-1$. Since $a$ is coprime to
-$p$, its residue class is a member of that group, so raising it to the group
-size gives the identity residue class.
+Write the student's natural-language proof attempt here. QEDesk should audit
+local gaps before asking Lean or an AI model to repair anything.
 
 \subsection*{Generated Lean Map}
 
@@ -152,21 +94,9 @@ This section is generated from \texttt{src/Proof.lean} by \texttt{qedesk sync}.
 
 \paragraph{Mapped statements.}
 
-\paragraph{mem\_of\_mem\_image\_preimage.}
+\paragraph{starter\_example.}
 \[
-  b \in f\bigl(f^{-1}(B_1)\bigr) \Rightarrow b \in B_1
-\]
-Lean status: checked.
-
-\paragraph{image\_preimage\_subset.}
-\[
-  f\bigl(f^{-1}(B_1)\bigr) \subseteq B_1
-\]
-Lean status: checked.
-
-\paragraph{fermat\_little\_modEq.}
-\[
-  a^{p-1} \equiv 1 \pmod {p}
+  \texttt{theorem starter\_example (P : Prop) (h : P) : P := by}
 \]
 Lean status: checked.
 
@@ -174,41 +104,22 @@ Lean status: checked.
 
 \begin{minted}{lean}
 import Mathlib.Data.Set.Basic
-import Mathlib.FieldTheory.Finite.Basic
 
-universe u v
+/-!
+QEDesk default workspace.
 
-section ImagePreimage
+Use this root workspace as a small scratchpad, or create problem-specific
+worksheets with:
 
-variable {A : Type u} {B : Type v}
+  ./bin/qedesk new <slug>
+-/
 
-theorem mem_of_mem_image_preimage
-    (f : A -> B) (B1 : Set B) {b : B}
-    (hb : Set.image f (Set.preimage f B1) b) :
-    B1 b := by
-  cases hb with
-  | intro a ha =>
-      cases ha with
-      | intro ha hfa =>
-          cases hfa
-          exact ha
+section DefaultWorkspace
 
-theorem image_preimage_subset
-    (f : A -> B) (B1 : Set B) :
-    Set.image f (Set.preimage f B1) <= B1 := by
-  intro b hb
-  exact mem_of_mem_image_preimage f B1 hb
+theorem starter_example (P : Prop) (h : P) : P := by
+  exact h
 
-end ImagePreimage
-
-section FermatLittle
-
-theorem fermat_little_modEq
-    {p a : Nat} (hp : p.Prime) (ha : a.Coprime p) :
-    Nat.ModEq p (a ^ (p - 1)) 1 :=
-  Nat.ModEq.pow_card_sub_one_eq_one hp ha
-
-end FermatLittle
+end DefaultWorkspace
 \end{minted}
 % QEDesk generated lean-map end
 

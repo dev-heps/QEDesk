@@ -61,6 +61,18 @@ if "%COMMAND%"=="shell" (
   docker compose --project-directory "%PROJECT_DIR%" exec "%SERVICE%" bash
   exit /b %ERRORLEVEL%
 )
+if "%COMMAND%"=="new" (
+  python "%PROJECT_DIR%\tools\qedesk_worksheet.py" %*
+  exit /b %ERRORLEVEL%
+)
+if "%COMMAND%"=="list" (
+  python "%PROJECT_DIR%\tools\qedesk_worksheet.py" %*
+  exit /b %ERRORLEVEL%
+)
+if "%COMMAND%"=="info" (
+  python "%PROJECT_DIR%\tools\qedesk_worksheet.py" %*
+  exit /b %ERRORLEVEL%
+)
 if "%COMMAND%"=="files" (
   echo Edit these files in your editor:
   echo.
@@ -76,6 +88,11 @@ if "%COMMAND%"=="files" (
   echo   bin\qedesk.bat lean
   echo   bin\qedesk.bat pdf
   exit /b 0
+)
+if "%COMMAND%"=="storage" (
+  echo Docker storage:
+  docker system df -v
+  exit /b %ERRORLEVEL%
 )
 if "%COMMAND%"=="contracts" (
   echo QEDesk v0.2 data contracts:
@@ -228,6 +245,10 @@ echo   restart       Restart the container
 echo   status        Show container status
 echo   shell         Open a shell inside the container
 echo   files         Show the main files to edit
+echo   storage       Show Docker storage use
+echo   new           Create a worksheet under worksheets\^<slug^>
+echo   list          List worksheet directories
+echo   info          Show worksheet paths
 echo   contracts     Show QEDesk v0.2 data-contract files
 echo   sync          Sync Lean declarations into TeX, blueprint, and DAG files
 echo   blueprint     Build the Lean Blueprint HTML visualization

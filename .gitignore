@@ -8,6 +8,10 @@ __pycache__/
 blueprint/web/
 blueprint/lean_decls
 blueprint/src/*.paux
+worksheets/**/build/
+worksheets/**/blueprint/web/
+worksheets/**/blueprint/lean_decls
+worksheets/**/blueprint/src/*.paux
 _minted-*/
 *.aux
 *.fdb_latexmk

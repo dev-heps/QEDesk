@@ -228,7 +228,7 @@ def lean_statement_to_tex(statement: str) -> str:
     return r"\texttt{" + compact.replace("\\", r"\textbackslash{}").replace("_", r"\_") + "}"
 
 
-def generated_latex_section(lean_text: str, decls: list[LeanDecl]) -> str:
+def generated_latex_section(lean_text: str, decls: list[LeanDecl], source_label: str = "src/Proof.lean") -> str:
     theorem_decls = [decl for decl in decls if decl.kind in {"theorem", "lemma"}]
     mapped = "\n\n".join(
         "\\paragraph{" + decl.name.replace("_", r"\_") + ".}\n"
@@ -244,7 +244,7 @@ def generated_latex_section(lean_text: str, decls: list[LeanDecl]) -> str:
     return (
         "\\subsection*{Generated Lean Map}\n\n"
         f"{GENERATED_BEGIN}\n"
-        "This section is generated from \\texttt{src/Proof.lean} by \\texttt{qedesk sync}.\n\n"
+        f"This section is generated from \\texttt{{{tex_ident(source_label)}}} by \\texttt{{qedesk sync}}.\n\n"
         "\\paragraph{Mapped statements.}\n\n"
         f"{mapped}\n\n"
         "\\paragraph{Lean source.}\n\n"
@@ -663,7 +663,7 @@ mathjax-dollars=False
     )
 
 
-def generated_dag(nodes: list[BlueprintNode], edges: list[dict], gaps: list[ProofGap]) -> dict:
+def generated_dag(nodes: list[BlueprintNode], edges: list[dict], gaps: list[ProofGap], document_label: str) -> dict:
     node_payloads = [
         {
             "id": node.id,
@@ -680,7 +680,7 @@ def generated_dag(nodes: list[BlueprintNode], edges: list[dict], gaps: list[Proo
         for node in nodes
     ]
     return {
-        "document": "src/main.tex",
+        "document": document_label,
         "version": "0.2",
         "nodes": node_payloads,
         "edges": edges,
@@ -701,19 +701,36 @@ def validate_dag(dag: dict, schema_path: Path) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Sync Lean declarations into QEDesk TeX, blueprint, and DAG artifacts.")
-    parser.add_argument("--lean", default="src/Proof.lean")
-    parser.add_argument("--tex", default="src/main.tex")
-    parser.add_argument("--blueprint", default="blueprint/src/content.tex")
-    parser.add_argument("--dag", default="build/qedesk-dag.json")
-    parser.add_argument("--mermaid", default="build/qedesk-dag.mmd")
+    parser.add_argument("worksheet", nargs="?", help="Optional worksheet directory containing main.tex and Proof.lean.")
+    parser.add_argument("--lean")
+    parser.add_argument("--tex")
+    parser.add_argument("--blueprint")
+    parser.add_argument("--dag")
+    parser.add_argument("--mermaid")
     parser.add_argument("--schema", default="schemas/qedesk-dag.schema.json")
     args = parser.parse_args()
 
-    lean_path = Path(args.lean)
-    tex_path = Path(args.tex)
-    blueprint_path = Path(args.blueprint)
-    dag_path = Path(args.dag)
-    mermaid_path = Path(args.mermaid)
+    worksheet_path = Path(args.worksheet) if args.worksheet else None
+    if worksheet_path is not None:
+        if not worksheet_path.is_dir():
+            raise SystemExit(f"Worksheet directory not found: {worksheet_path}")
+        default_lean = worksheet_path / "Proof.lean"
+        default_tex = worksheet_path / "main.tex"
+        default_blueprint = worksheet_path / "blueprint" / "src" / "content.tex"
+        default_dag = worksheet_path / "build" / "qedesk-dag.json"
+        default_mermaid = worksheet_path / "build" / "qedesk-dag.mmd"
+    else:
+        default_lean = Path("src/Proof.lean")
+        default_tex = Path("src/main.tex")
+        default_blueprint = Path("blueprint/src/content.tex")
+        default_dag = Path("build/qedesk-dag.json")
+        default_mermaid = Path("build/qedesk-dag.mmd")
+
+    lean_path = Path(args.lean) if args.lean else default_lean
+    tex_path = Path(args.tex) if args.tex else default_tex
+    blueprint_path = Path(args.blueprint) if args.blueprint else default_blueprint
+    dag_path = Path(args.dag) if args.dag else default_dag
+    mermaid_path = Path(args.mermaid) if args.mermaid else default_mermaid
     schema_path = Path(args.schema)
 
     lean_text = read_text(lean_path)
@@ -723,13 +740,22 @@ def main() -> int:
     nodes = all_blueprint_nodes(decls, parsed_nodes)
     edges = edges_from_nodes(nodes)
 
-    new_tex = update_main_tex(tex_text, generated_latex_section(lean_text, decls))
+    lean_label = lean_path.as_posix()
+    tex_label = tex_path.as_posix()
+    if worksheet_path is not None:
+        try:
+            lean_label = lean_path.relative_to(worksheet_path).as_posix()
+            tex_label = tex_path.relative_to(worksheet_path).as_posix()
+        except ValueError:
+            pass
+
+    new_tex = update_main_tex(tex_text, generated_latex_section(lean_text, decls, lean_label))
     write_text(tex_path, new_tex)
     ensure_blueprint_scaffold(blueprint_path.parent)
     blueprint_text = generated_blueprint(decls, parsed_nodes)
     write_text(blueprint_path, blueprint_text)
 
-    dag = generated_dag(nodes, edges, gaps)
+    dag = generated_dag(nodes, edges, gaps, tex_label)
     validate_dag(dag, schema_path)
     write_text(dag_path, json.dumps(dag, indent=2) + "\n")
     write_text(mermaid_path, generated_mermaid(nodes, edges))

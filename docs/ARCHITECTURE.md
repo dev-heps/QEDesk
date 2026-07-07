@@ -69,6 +69,26 @@ and a Mermaid sidecar at `build/qedesk-dag.mmd`. Lean Blueprint web output is
 built under `blueprint/web/`. Automatic bidirectional sync is intentionally
 unspecified until QEDesk has a real LaTeX parser.
 
+For ongoing use, QEDesk supports independent worksheets under
+`worksheets/<slug>/`. Each worksheet owns its own `main.tex`, `Proof.lean`,
+`build/`, and `blueprint/` outputs. The root `src/` pair remains the default
+starter workbook, while new exercises should usually be created with:
+
+```bash
+./bin/qedesk new number-theory/fermat-little
+./bin/qedesk lean worksheets/number-theory/fermat-little
+./bin/qedesk pdf worksheets/number-theory/fermat-little
+./bin/qedesk audit --dry-run worksheets/number-theory/fermat-little
+```
+
+This keeps natural-language notes, Lean targets, generated graphs, and audit
+history local to the problem being studied.
+
+Generated outputs are disposable. `./bin/qedesk clean` removes local PDFs,
+LaTeX logs, Blueprint HTML, and worksheet generated outputs while preserving
+the OpenRouter cost ledger. Docker image and Lean cache storage are managed
+separately; inspect them with `./bin/qedesk storage`.
+
 ## Local Verification
 
 Natural-language proof auditing should use local typed justifications:

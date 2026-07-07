@@ -3,56 +3,18 @@
 
 \section{Generated Blueprint}
 
-% QEDesk[node=image_membership][kind=definition][status=open]
-\begin{definition}[Membership in an image]
-\label{def:image_membership}
+% QEDesk[node=starter_definition][kind=definition][status=open]
+\begin{definition}[Starter definition]
+\label{def:starter_definition}
 \notready
-For a set $S \subseteq A$, the assertion $b \in f(S)$ means that there is
-some $a \in S$ such that $f(a)=b$.
+Record the first useful definition, assumption, or local invariant here.
 \end{definition}
 
-% QEDesk[node=preimage_membership][kind=definition][status=open]
-\begin{definition}[Membership in a preimage]
-\label{def:preimage_membership}
-\notready
-The assertion $a \in f^{-1}(B_1)$ means exactly that $f(a) \in B_1$.
-\end{definition}
-
-% QEDesk[node=mem_of_mem_image_preimage][kind=lemma][status=checked]
-\begin{lemma}[Element chase through image and preimage]
-\label{lem:mem_of_mem_image_preimage}
-\lean{mem_of_mem_image_preimage}
+% QEDesk[node=starter_example][kind=theorem][status=checked]
+\begin{theorem}[Starter example]
+\label{thm:starter_example}
+\lean{starter_example}
 \leanok
-\uses{def:image_membership, def:preimage_membership}
-If $b \in f(f^{-1}(B_1))$, then $b \in B_1$.
-\end{lemma}
-
-% QEDesk[node=image_preimage_subset][kind=theorem][status=checked]
-\begin{theorem}[Image of a preimage is contained in the target set]
-\label{thm:image_preimage_subset}
-\lean{image_preimage_subset}
-\leanok
-\uses{lem:mem_of_mem_image_preimage}
-The elementwise lemma proves the subset statement
-$f(f^{-1}(B_1)) \subseteq B_1$.
-\end{theorem}
-
-% QEDesk[node=flt_coprime_setup][kind=definition][status=open]
-\begin{definition}[Coprime residue modulo a prime]
-\label{def:flt_coprime_setup}
-\notready
-The assumption $\gcd(a,p)=1$ says that the residue class of $a$ modulo $p$
-is nonzero, hence a unit in the finite field with $p$ elements.
-\end{definition}
-
-% QEDesk[node=fermat_little_modEq][kind=theorem][status=checked]
-\begin{theorem}[Fermat's little theorem in modular form]
-\label{thm:fermat_little_modEq}
-\lean{fermat_little_modEq}
-\leanok
-\uses{def:flt_coprime_setup}
-If $p$ is prime and $\gcd(a,p)=1$, then
-\[
-  a^{p-1} \equiv 1 \pmod p.
-\]
+\uses{def:starter_definition}
+If $P$ is true, then $P$ is true.
 \end{theorem}
