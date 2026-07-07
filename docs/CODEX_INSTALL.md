@@ -142,6 +142,6 @@ Before pushing:
 
 ```bash
 git status
-git ls-files -z | xargs -0 grep -In "sk-or-v1\\|OPENROUTER_API_KEY=.*sk-" || true
+git grep -n -E "OPENROUTER_API_KEY=[s]k-|[s]k-or-v1-" || true
 git push origin main
 ```
