@@ -276,7 +276,7 @@ def openrouter_client(config: dict[str, Any]) -> Any:
     headers = {
         "HTTP-Referer": os.environ.get(
             "OPENROUTER_HTTP_REFERER",
-            openrouter.get("http_referer", "https://github.com/qedesk/qedesk"),
+            openrouter.get("http_referer", "https://github.com/dev-heps/QEDesk"),
         ),
         "X-Title": os.environ.get("OPENROUTER_TITLE", openrouter.get("title", "QEDesk")),
     }

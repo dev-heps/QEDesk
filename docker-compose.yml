@@ -13,7 +13,7 @@ services:
     environment:
       LEAN_LOG_LEVEL: NONE
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
-      OPENROUTER_HTTP_REFERER: ${OPENROUTER_HTTP_REFERER:-https://github.com/qedesk/qedesk}
+      OPENROUTER_HTTP_REFERER: ${OPENROUTER_HTTP_REFERER:-https://github.com/dev-heps/QEDesk}
       OPENROUTER_TITLE: ${OPENROUTER_TITLE:-QEDesk}
     command: sleep infinity
 

@@ -1,7 +1,7 @@
 {
   "openrouter": {
     "base_url": "https://openrouter.ai/api/v1",
-    "http_referer": "https://github.com/qedesk/qedesk",
+    "http_referer": "https://github.com/dev-heps/QEDesk",
     "title": "QEDesk"
   },
   "models": {
